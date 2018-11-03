@@ -1,0 +1,17 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/UIRes">
+        <file alias="WhiteKing">res/WhiteKing.png</file>
+        <file alias="WhiteQueen">res/WhiteQueen.png</file>
+        <file alias="WhiteRook">res/WhiteRook.png</file>
+        <file alias="WhiteBishop">res/WhiteBishop.png</file>
+        <file alias="WhiteKnight">res/WhiteKnight.png</file>
+        <file alias="WhitePawn">res/WhitePawn.png</file>
+        <file alias="BlackKing">res/BlackKing.png</file>
+        <file alias="BlackQueen">res/BlackQueen.png</file>
+        <file alias="BlackRook">res/BlackRook.png</file>
+        <file alias="BlackBishop">res/BlackBishop.png</file>
+        <file alias="BlackKnight">res/BlackKnight.png</file>
+        <file alias="BlackPawn">res/BlackPawn.png</file>
+    </qresource>
+</RCC>
