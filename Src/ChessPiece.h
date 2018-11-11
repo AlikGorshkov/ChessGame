@@ -25,11 +25,15 @@ public:
 
     explicit CChessPiece(const Type type = Type::None, const Color color = Color::White);
 
+    bool IsValid() const;
+
     Type GetType() const;
     void SetType(const Type type);
 
     Color GetColor() const;
     void SetColor(const Color color);
+
+    static Color GetOppositeColor(const Color color);
 
 private:
     Type    m_Type;

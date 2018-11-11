@@ -12,11 +12,15 @@ SOURCES     +=  ChessProj.cpp                   \
                 MainWindow.cpp                  \
                 ChessBoardGraphicsView.cpp      \
                 ChessBoard.cpp                  \
+                ChessGame.cpp                   \
+                ChessMove.cpp                   \
                 ChessPiece.cpp
 
 HEADERS     +=  MainWindow.h                    \
                 ChessBoardGraphicsView.h        \
                 ChessBoard.h                    \
+                ChessGame.h                     \
+                ChessMove.h                     \
                 ChessPiece.h
 
 RESOURCES   =   ChessProj.qrc

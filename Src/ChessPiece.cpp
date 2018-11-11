@@ -9,6 +9,11 @@ CChessPiece::CChessPiece(const Type type /*= Type::None*/, const Color color /*=
 {
 }
 
+bool CChessPiece::IsValid() const
+{
+    return m_Type != Type::None;
+}
+
 CChessPiece::Type CChessPiece::GetType() const
 {
     return m_Type;
@@ -27,6 +32,11 @@ CChessPiece::Color CChessPiece::GetColor() const
 void CChessPiece::SetColor(const Color color)
 {
     m_Color = color;
+}
+
+CChessPiece::Color CChessPiece::GetOppositeColor(const Color color)
+{
+    return (color == Color::White) ? Color::Black : Color::White;
 }
 
 } // namespace ChessProj

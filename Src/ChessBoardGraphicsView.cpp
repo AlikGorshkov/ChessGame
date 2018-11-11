@@ -1,9 +1,9 @@
 #include "ChessBoardGraphicsView.h"
-#include "ChessBoard.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsRectItem>
 #include <QGraphicsPixmapItem>
+#include <QMouseEvent>
 
 namespace ChessProj
 {
@@ -11,12 +11,15 @@ namespace ChessProj
 static const QColor         s_ColorWhite        = QColor(237, 237, 209);
 static const QColor         s_ColorBlack        = QColor(117, 149, 87);
 static const QColor         s_ColorBackground   = QColor(52, 49, 47);
+static const QColor         s_ColorSelection    = QColor(255, 247, 74, 200);
 static const qreal          s_BoardMarginLeft   = 40.0;
 static const qreal          s_BoardMarginRight  = 20.0;
 static const qreal          s_BoardMarginTop    = 20.0;
 static const qreal          s_BoardMarginBottom = 40.0;
 static const int            s_FontSize          = 12;
 static const std::size_t    s_MaxPiecesOnBoard  = 32;
+static const qreal          s_SelectionZValue   = 50.0;
+static const qreal          s_PieceItemZValue   = 100.0;
 
 static const QPixmap & GetPixmapForTypeColor(const CChessPiece::Type type, const CChessPiece::Color color)
 {
@@ -55,7 +58,8 @@ static const QPixmap & GetPixmapForTypeColor(const CChessPiece::Type type, const
     }
 
     assert(false);
-    throw 1;
+
+    return s_PiecesPixmaps[row][0];
 }
 
 static const QPixmap & GetPixmapForPiece(const CChessPiece & piece)
@@ -64,7 +68,6 @@ static const QPixmap & GetPixmapForPiece(const CChessPiece & piece)
 }
 
 CBoardGraphicsView::CBoardGraphicsView()
-    : m_Board(new CChessBoard)
 {
     m_Font.setPointSize(s_FontSize);
     m_Font.setBold(true);
@@ -84,14 +87,14 @@ void CBoardGraphicsView::UpdateBoardItems()
 {
     ResetBoardPiecesCache();
 
-    auto * pieces = m_Board->GetPieces();
+    const auto & board = m_Game.GetBoard();
 
     std::size_t pieceItemIdx = 0;
 
     for (int r = 0; r < 8; ++r)
         for (int c = 0; c < 8; ++c)
         {
-            auto & piece = pieces[r * 8 + c];
+            const auto & piece = board.GetPieceAtSquare(CSquare(r, c));
             if (piece.GetType() == CChessPiece::Type::None)
                 continue;
 
@@ -106,6 +109,8 @@ void CBoardGraphicsView::UpdateBoardItems()
 
     for (std::size_t t = pieceItemIdx; t < s_MaxPiecesOnBoard; ++t)
         m_AllPiecesItems[t]->setVisible(false);
+
+    UpdateBoardItemsPositions();
 }
 
 void CBoardGraphicsView::resizeEvent(QResizeEvent * event)
@@ -125,9 +130,9 @@ void CBoardGraphicsView::resizeEvent(QResizeEvent * event)
     const auto availableWidth  = viewWidth  - s_BoardMarginLeft - s_BoardMarginRight;
     const auto availableHeight = viewHeight - s_BoardMarginTop  - s_BoardMarginBottom;
 
-    const auto squareSide = std::min(availableWidth, availableHeight) / 8.0;
+    const auto sideLength = std::min(availableWidth, availableHeight);
 
-    const auto graphicsScale = squareSide / 333.0;
+    const auto squareSide = sideLength / 8.0;
 
     const QFontMetrics fontMetrics(m_Font);
 
@@ -136,6 +141,10 @@ void CBoardGraphicsView::resizeEvent(QResizeEvent * event)
     const auto yOffset = (squareSide - static_cast<qreal>(fontMetrics.height())) / 2.0;
 
     const auto letterYPos = viewHeight - s_BoardMarginBottom;
+
+    m_BoardRect = QRectF(s_BoardMarginLeft, s_BoardMarginTop, sideLength, sideLength);
+
+    m_SquareSide = squareSide;
 
     // squares
 
@@ -148,12 +157,6 @@ void CBoardGraphicsView::resizeEvent(QResizeEvent * event)
             const auto colOffset = s_BoardMarginLeft + squareSide * static_cast<qreal>(c);
 
             m_SquaresItems[r * 8 + c]->setRect(colOffset, rowOffset, squareSide, squareSide);
-
-            if (auto * item = m_BoardPiecesCache[r][c])
-            {
-                item->setPos(colOffset, rowOffset);
-                item->setScale(graphicsScale);
-            }
         }
     }
 
@@ -182,11 +185,108 @@ void CBoardGraphicsView::resizeEvent(QResizeEvent * event)
 
         letterText->setPos(colOffset + xOffset, letterYPos);
     }
+
+    if (m_SelectedSquare.IsValid())
+    {
+        const auto squarePos = GetPosForSquare(m_SelectedSquare);
+
+        m_SelectionItem->setRect(squarePos.x(), squarePos.y(), squareSide, squareSide);
+    }
+
+    UpdateBoardItemsPositions();
+}
+
+void CBoardGraphicsView::mousePressEvent(QMouseEvent * event)
+{
+    __super::mousePressEvent(event);
+
+    if (event->button() == Qt::LeftButton)
+        m_LastMousePressSquare = GetSquareForPoint(event->pos());
+}
+
+void CBoardGraphicsView::mouseReleaseEvent(QMouseEvent * event)
+{
+    __super::mousePressEvent(event);
+
+    if (event->button() != Qt::LeftButton)
+        return;
+
+    const auto square = GetSquareForPoint(event->pos());
+    if (square != m_LastMousePressSquare)
+        return;
+
+    if (m_Game.IsMoveLegal(CChessMove(m_SelectedSquare, square)))
+    {
+        m_Game.Move(CChessMove(m_SelectedSquare, square));
+
+        UpdateBoardItems();
+
+        m_SelectedSquare = CSquare();
+        m_SelectionItem->setVisible(false);
+
+        return;
+    }
+
+    const auto & piece = m_Game.GetBoard().GetPieceAtSquare(square);
+
+    if (square.IsValid() && piece.IsValid() && piece.GetColor() == m_Game.GetCurrentMoveColor())
+    {
+        const auto squarePos = GetPosForSquare(square);
+
+        m_SelectionItem->setRect(squarePos.x(), squarePos.y(), m_SquareSide, m_SquareSide);
+        m_SelectionItem->setVisible(true);
+
+        m_SelectedSquare = square;
+    }
+    else
+    {
+        m_SelectedSquare = CSquare();
+        m_SelectionItem->setVisible(false);
+    }
+}
+
+void CBoardGraphicsView::dragEnterEvent(QDragEnterEvent * event)
+{
+    __super::dragEnterEvent(event);
+}
+
+void CBoardGraphicsView::dragLeaveEvent(QDragLeaveEvent * event)
+{
+    __super::dragLeaveEvent(event);
+}
+
+void CBoardGraphicsView::dragMoveEvent(QDragMoveEvent * event)
+{
+    __super::dragMoveEvent(event);
+}
+
+void CBoardGraphicsView::UpdateBoardItemsPositions()
+{
+    const auto graphicsScale = m_SquareSide / 333.0;
+
+    for (std::size_t r = 0; r < 8; ++r)
+    {
+        const auto rowOffset = s_BoardMarginTop + m_SquareSide * static_cast<qreal>(r);
+
+        for (std::size_t c = 0; c < 8; ++c)
+            if (auto * item = m_BoardPiecesCache[r][c])
+            {
+                const auto colOffset = s_BoardMarginLeft + m_SquareSide * static_cast<qreal>(c);
+
+                item->setPos(colOffset, rowOffset);
+                item->setScale(graphicsScale);
+            }
+    }
 }
 
 void CBoardGraphicsView::AddSquaresNumbersLetters()
 {
     m_BackgroundItem = m_Scene->addRect(QRectF(), QPen(), QBrush(s_ColorBackground));
+
+    m_SelectionItem = m_Scene->addRect(QRectF(), QPen(), QBrush(s_ColorSelection));
+
+    m_SelectionItem->setZValue(s_SelectionZValue);
+    m_SelectionItem->setVisible(false);
 
     for (int i = 0; i < 8; ++i)
     {
@@ -223,7 +323,13 @@ void CBoardGraphicsView::AddPiecesItems()
     const auto & whiteQueenPixmap = GetPixmapForTypeColor(CChessPiece::Type::Queen, CChessPiece::Color::White);
 
     for (int i = 0; i < s_MaxPiecesOnBoard; ++i)
-        m_AllPiecesItems.push_back(m_Scene->addPixmap(whiteQueenPixmap));
+    {
+        auto item = m_Scene->addPixmap(whiteQueenPixmap);
+
+        item->setZValue(s_PieceItemZValue);
+
+        m_AllPiecesItems.push_back(item);
+    }
 
     ResetBoardPiecesCache();
 }
@@ -233,6 +339,31 @@ void CBoardGraphicsView::ResetBoardPiecesCache()
     for (int r = 0; r < 8; ++r)
         for (int c = 0; c < 8; ++c)
             m_BoardPiecesCache[r][c] = nullptr;
+}
+
+CSquare CBoardGraphicsView::GetSquareForPoint(const QPointF & pt) const
+{
+    if (!m_BoardRect.contains(pt))
+        return CSquare();
+
+    const QPointF ptBoard(pt.x() - m_BoardRect.x(), pt.y() - m_BoardRect.y());
+
+    CSquare result;
+    result.m_Row = static_cast<int>(ptBoard.y() / m_SquareSide);
+    result.m_Col = static_cast<int>(ptBoard.x() / m_SquareSide);
+
+    result.m_Row = std::min(result.m_Row, 7);
+    result.m_Col = std::min(result.m_Col, 7);
+
+    return result;
+}
+
+QPointF CBoardGraphicsView::GetPosForSquare(const CSquare & square) const
+{
+    assert(square.IsValid());
+
+    return QPointF(m_BoardRect.x() + static_cast<qreal>(square.m_Col) * m_SquareSide,
+                   m_BoardRect.y() + static_cast<qreal>(square.m_Row) * m_SquareSide);
 }
 
 } // namespace ChessProj

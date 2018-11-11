@@ -1,0 +1,17 @@
+
+*.stash
+*.vcxproj
+*.filters
+*.cbt
+*.sln
+*.user
+*.obj
+*.log
+*.ipch
+*.opendb
+*.db
+*.pdb
+*.ilk
+*.suo
+debug
+release
