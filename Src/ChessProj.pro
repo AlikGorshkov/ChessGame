@@ -10,6 +10,8 @@ CONFIG(debug, debug|release) {
 
 SOURCES     +=  ChessProj.cpp                   \
                 MainWindow.cpp                  \
+                MainToolBar.cpp                 \
+                ActionManager.cpp               \
                 ChessBoardGraphicsView.cpp      \
                 ChessBoard.cpp                  \
                 ChessGame.cpp                   \
@@ -17,6 +19,8 @@ SOURCES     +=  ChessProj.cpp                   \
                 ChessPiece.cpp
 
 HEADERS     +=  MainWindow.h                    \
+                MainToolBar.h                   \
+                ActionManager.h                 \
                 ChessBoardGraphicsView.h        \
                 ChessBoard.h                    \
                 ChessGame.h                     \

@@ -5,6 +5,7 @@
 namespace ChessProj
 {
 
+class CMainToolBar;
 class CBoardGraphicsView;
 
 class CMainWindow : public QMainWindow
@@ -14,7 +15,12 @@ class CMainWindow : public QMainWindow
 public:
     CMainWindow(QWidget * parent = nullptr);
 
+private slots:
+    void StartNewGameAsWhite();
+    void StartNewGameAsBlack();
+
 private:
+    CMainToolBar *       m_ToolBar;
     CBoardGraphicsView * m_View;
 };
 

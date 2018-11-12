@@ -18,6 +18,8 @@ Q_OBJECT
 public:
     CBoardGraphicsView();
 
+    void StartNewGame(const bool asWhite);
+
     void UpdateBoardItems();
 
 protected:

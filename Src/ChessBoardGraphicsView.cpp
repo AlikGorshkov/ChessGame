@@ -83,6 +83,13 @@ CBoardGraphicsView::CBoardGraphicsView()
     UpdateBoardItems();
 }
 
+void CBoardGraphicsView::StartNewGame(const bool asWhite)
+{
+    m_Game.StartNew(asWhite ? CChessPiece::Color::White : CChessPiece::Color::Black);
+
+    UpdateBoardItems();
+}
+
 void CBoardGraphicsView::UpdateBoardItems()
 {
     ResetBoardPiecesCache();
