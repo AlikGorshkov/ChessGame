@@ -18,7 +18,7 @@ static const qreal          s_BoardMarginTop    = 20.0;
 static const qreal          s_BoardMarginBottom = 40.0;
 static const int            s_FontSize          = 12;
 static const std::size_t    s_MaxPiecesOnBoard  = 32;
-static const qreal          s_SelectionZValue   = 50.0;
+static const qreal          s_MovementZValue    = 150.0;
 static const qreal          s_PieceItemZValue   = 100.0;
 
 static const QPixmap & GetPixmapForTypeColor(const CChessPiece::Type type, const CChessPiece::Color color)
@@ -193,13 +193,6 @@ void CBoardGraphicsView::resizeEvent(QResizeEvent * event)
         letterText->setPos(colOffset + xOffset, letterYPos);
     }
 
-    if (m_SelectedSquare.IsValid())
-    {
-        const auto squarePos = GetPosForSquare(m_SelectedSquare);
-
-        m_SelectionItem->setRect(squarePos.x(), squarePos.y(), squareSide, squareSide);
-    }
-
     UpdateBoardItemsPositions();
 }
 
@@ -207,8 +200,19 @@ void CBoardGraphicsView::mousePressEvent(QMouseEvent * event)
 {
     __super::mousePressEvent(event);
 
-    if (event->button() == Qt::LeftButton)
-        m_LastMousePressSquare = GetSquareForPoint(event->pos());
+    if (event->button() != Qt::LeftButton)
+        return;
+
+    m_LastMousePressSquare = GetSquareForPoint(event->pos());
+
+    if (m_LastMousePressSquare.IsValid())
+    {
+        const auto squarePos = GetPosForSquare(m_LastMousePressSquare);
+
+        m_MousePosToPieceOffset = event->pos() - squarePos;
+
+        SetZValueForItemToMove(s_MovementZValue);
+    }
 }
 
 void CBoardGraphicsView::mouseReleaseEvent(QMouseEvent * event)
@@ -218,53 +222,30 @@ void CBoardGraphicsView::mouseReleaseEvent(QMouseEvent * event)
     if (event->button() != Qt::LeftButton)
         return;
 
-    const auto square = GetSquareForPoint(event->pos());
-    if (square != m_LastMousePressSquare)
-        return;
+    SetZValueForItemToMove(s_PieceItemZValue);
 
-    if (m_Game.IsMoveLegal(CChessMove(m_SelectedSquare, square)))
+    const auto square = GetSquareForPoint(event->pos());
+
+    if (m_Game.IsMoveLegal(CChessMove(m_LastMousePressSquare, square)))
     {
-        m_Game.Move(CChessMove(m_SelectedSquare, square));
+        m_Game.Move(CChessMove(m_LastMousePressSquare, square));
 
         UpdateBoardItems();
-
-        m_SelectedSquare = CSquare();
-        m_SelectionItem->setVisible(false);
-
-        return;
-    }
-
-    const auto & piece = m_Game.GetBoard().GetPieceAtSquare(square);
-
-    if (square.IsValid() && piece.IsValid() && piece.GetColor() == m_Game.GetCurrentMoveColor())
-    {
-        const auto squarePos = GetPosForSquare(square);
-
-        m_SelectionItem->setRect(squarePos.x(), squarePos.y(), m_SquareSide, m_SquareSide);
-        m_SelectionItem->setVisible(true);
-
-        m_SelectedSquare = square;
     }
     else
-    {
-        m_SelectedSquare = CSquare();
-        m_SelectionItem->setVisible(false);
-    }
+        ReturnLastMovedPieceBack();
 }
 
-void CBoardGraphicsView::dragEnterEvent(QDragEnterEvent * event)
+void CBoardGraphicsView::mouseMoveEvent(QMouseEvent * event)
 {
-    __super::dragEnterEvent(event);
-}
+    __super::mouseMoveEvent(event);
 
-void CBoardGraphicsView::dragLeaveEvent(QDragLeaveEvent * event)
-{
-    __super::dragLeaveEvent(event);
-}
+    if (!(event->buttons() & Qt::LeftButton))
+        return;
 
-void CBoardGraphicsView::dragMoveEvent(QDragMoveEvent * event)
-{
-    __super::dragMoveEvent(event);
+    if (m_LastMousePressSquare.IsValid())
+        if (auto * item = m_BoardPiecesCache[m_LastMousePressSquare.m_Row][m_LastMousePressSquare.m_Col])
+            item->setPos(event->pos() - m_MousePosToPieceOffset);
 }
 
 void CBoardGraphicsView::UpdateBoardItemsPositions()
@@ -289,11 +270,6 @@ void CBoardGraphicsView::UpdateBoardItemsPositions()
 void CBoardGraphicsView::AddSquaresNumbersLetters()
 {
     m_BackgroundItem = m_Scene->addRect(QRectF(), QPen(), QBrush(s_ColorBackground));
-
-    m_SelectionItem = m_Scene->addRect(QRectF(), QPen(), QBrush(s_ColorSelection));
-
-    m_SelectionItem->setZValue(s_SelectionZValue);
-    m_SelectionItem->setVisible(false);
 
     for (int i = 0; i < 8; ++i)
     {
@@ -346,6 +322,24 @@ void CBoardGraphicsView::ResetBoardPiecesCache()
     for (int r = 0; r < 8; ++r)
         for (int c = 0; c < 8; ++c)
             m_BoardPiecesCache[r][c] = nullptr;
+}
+
+void CBoardGraphicsView::ReturnLastMovedPieceBack()
+{
+    if (!m_LastMousePressSquare.IsValid())
+        return;
+
+    if (auto * item = m_BoardPiecesCache[m_LastMousePressSquare.m_Row][m_LastMousePressSquare.m_Col])
+        item->setPos(GetPosForSquare(m_LastMousePressSquare));
+}
+
+void CBoardGraphicsView::SetZValueForItemToMove(const float zValue)
+{
+    if (!m_LastMousePressSquare.IsValid())
+        return;
+
+    if (auto * item = m_BoardPiecesCache[m_LastMousePressSquare.m_Row][m_LastMousePressSquare.m_Col])
+        item->setZValue(zValue);
 }
 
 CSquare CBoardGraphicsView::GetSquareForPoint(const QPointF & pt) const

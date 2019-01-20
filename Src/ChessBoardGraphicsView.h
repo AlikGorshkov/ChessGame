@@ -26,9 +26,7 @@ protected:
     void resizeEvent(QResizeEvent * event) override;
     void mousePressEvent(QMouseEvent * event) override;
     void mouseReleaseEvent(QMouseEvent * event) override;
-    void dragEnterEvent(QDragEnterEvent * event) override;
-    void dragLeaveEvent(QDragLeaveEvent * event) override;
-    void dragMoveEvent(QDragMoveEvent * event) override;
+    void mouseMoveEvent(QMouseEvent * event) override;
 
 private:
     void UpdateBoardItemsPositions();
@@ -39,13 +37,16 @@ private:
 
     void ResetBoardPiecesCache();
 
+    void ReturnLastMovedPieceBack();
+
+    void SetZValueForItemToMove(const float zValue);
+
     CSquare GetSquareForPoint(const QPointF & pt) const;
 
     QPointF GetPosForSquare(const CSquare & square) const;
 
     QGraphicsScene *                    m_Scene;
     QGraphicsRectItem *                 m_BackgroundItem;
-    QGraphicsRectItem *                 m_SelectionItem;
     std::vector<QGraphicsRectItem *>    m_SquaresItems;
     std::vector<QGraphicsTextItem *>    m_SquaresNumbers;
     std::vector<QGraphicsTextItem *>    m_SquaresLetters;
@@ -60,8 +61,9 @@ private:
     QRectF                              m_BoardRect;
     qreal                               m_SquareSide = 0.0;
 
+    QPointF                             m_MousePosToPieceOffset;
+
     CSquare                             m_LastMousePressSquare;
-    CSquare                             m_SelectedSquare;
 };
 
 } // namespace ChessProj
