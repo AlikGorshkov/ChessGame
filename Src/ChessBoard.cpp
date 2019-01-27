@@ -1,6 +1,7 @@
 #include "ChessBoard.h"
 
 #include <algorithm>
+#include <cassert>
 
 namespace ChessProj
 {
@@ -112,6 +113,22 @@ const CChessPiece & CChessBoard::GetPieceAtSquare(const CSquare & square) const
     return m_Pieces[square.m_Row][square.m_Col];
 }
 
+std::vector<CSquare> CChessBoard::GetPieces(const CChessPiece::Color color) const
+{
+    std::vector<CSquare> result;
+    result.reserve(16);
+
+    for (int row = 0; row < 8; ++row)
+        for (int col = 0; col < 8; ++col)
+        {
+            const auto & piece = m_Pieces[row][col];
+            if (piece.IsValid() && piece.GetColor() == color)
+                result.push_back(CSquare(row, col));
+        }
+
+    return result;
+}
+
 const CSquare & CChessBoard::GetWhiteKingPos() const
 {
     return m_WhiteKingPos;
@@ -135,6 +152,26 @@ void CChessBoard::SetPieceAtSquare(const CChessPiece & piece, const CSquare & sq
     }
 
     m_Pieces[square.m_Row][square.m_Col] = piece;
+}
+
+std::string CChessBoard::GetSquareName(const CSquare & square) const
+{
+    assert(square.IsValid());
+
+    std::string result;
+
+    if (m_BottomColor == CChessPiece::Color::White)
+    {
+        result += 'a' + square.m_Col;
+        result += '8' - square.m_Row;
+    }
+    else
+    {
+        result += 'h' - square.m_Col;
+        result += '1' + square.m_Row;
+    }
+
+    return result;
 }
 
 } // namespace ChessProj

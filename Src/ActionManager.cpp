@@ -8,8 +8,9 @@ namespace ChessProj
 
 CActionManager::CActionManager()
 {
-    AddAction(CommonAction::NewGameAsWhite, ":/UIRes/WhiteKing");
-    AddAction(CommonAction::NewGameAsBlack, ":/UIRes/BlackKing");
+    AddAction(CommonAction::NewGameAsWhite,   ":/UIRes/WhiteKing");
+    AddAction(CommonAction::NewGameAsBlack,   ":/UIRes/BlackKing");
+    AddAction(CommonAction::EvaluatePosition, ":/UIRes/Evaluate");
 
     ReTranslate();
 }
@@ -46,6 +47,7 @@ void CActionManager::ReTranslate()
 {
     GetAction(CommonAction::NewGameAsWhite)->setText(QApplication::tr("New game as White"));
     GetAction(CommonAction::NewGameAsBlack)->setText(QApplication::tr("New game as Black"));
+    GetAction(CommonAction::EvaluatePosition)->setText(QApplication::tr("Evaluate Position"));
 }
 
 } // namespace ChessProj

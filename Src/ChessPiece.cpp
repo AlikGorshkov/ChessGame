@@ -14,6 +14,22 @@ bool CChessPiece::IsValid() const
     return m_Type != Type::None;
 }
 
+char CChessPiece::GetFENChar() const
+{
+    const bool isWhite = m_Color == Color::White;
+
+    switch (m_Type)
+    {
+    case Type::Pawn :   return isWhite ? 'P' : 'p';
+    case Type::Knight : return isWhite ? 'N' : 'n';
+    case Type::Bishop : return isWhite ? 'B' : 'b';
+    case Type::Queen :  return isWhite ? 'Q' : 'q';
+    case Type::Rook :   return isWhite ? 'R' : 'r';
+    }
+
+    return isWhite ? 'K' : 'k';
+}
+
 CChessPiece::Type CChessPiece::GetType() const
 {
     return m_Type;

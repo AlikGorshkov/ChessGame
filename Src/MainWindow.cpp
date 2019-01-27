@@ -26,8 +26,9 @@ CMainWindow::CMainWindow(QWidget * pParent)
 
     CActionManager & actMgr = CActionManager::Instance();
 
-    connect(actMgr.GetAction(CActionManager::CommonAction::NewGameAsWhite), SIGNAL(triggered()), this, SLOT(StartNewGameAsWhite()));
-    connect(actMgr.GetAction(CActionManager::CommonAction::NewGameAsBlack), SIGNAL(triggered()), this, SLOT(StartNewGameAsBlack()));
+    connect(actMgr.GetAction(CActionManager::CommonAction::NewGameAsWhite),   SIGNAL(triggered()), this, SLOT(StartNewGameAsWhite()));
+    connect(actMgr.GetAction(CActionManager::CommonAction::NewGameAsBlack),   SIGNAL(triggered()), this, SLOT(StartNewGameAsBlack()));
+    connect(actMgr.GetAction(CActionManager::CommonAction::EvaluatePosition), SIGNAL(triggered()), this, SLOT(EvaluatePosition()));
 }
 
 void CMainWindow::StartNewGameAsWhite()
@@ -38,6 +39,11 @@ void CMainWindow::StartNewGameAsWhite()
 void CMainWindow::StartNewGameAsBlack()
 {
     m_View->StartNewGame(false);
+}
+
+void CMainWindow::EvaluatePosition()
+{
+    m_View->EvaluatePosition();
 }
 
 } // namespace ChessProj

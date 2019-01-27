@@ -2,12 +2,22 @@
 
 #include "ChessMove.h"
 
+#include <string>
+
 namespace ChessProj
 {
 
 class CChessGame
 {
 public:
+    enum class State
+    {
+        Active,
+        Draw,
+        WhiteWon,
+        BlackWon
+    };
+
     CChessGame();
 
     void StartNew(const CChessPiece::Color color);
@@ -15,6 +25,10 @@ public:
     CChessPiece::Color GetCurrentMoveColor() const;
 
     const CChessBoard & GetBoard() const;
+
+    State GetState() const;
+
+    std::string GetFEN() const;
 
     void Move(const CChessMove & mv, const CChessPiece::Type promoteType = CChessPiece::Type::Queen);
 
@@ -37,9 +51,19 @@ private:
     void HandleRookMove(const CChessMove & mv);
     void HandlePawnMove(const CChessMove & mv, const CChessPiece::Type promoteType);
 
+    bool IsMoveAvailable() const;
+    bool IsMoveAvailableIncremental(const CSquare & square, const std::vector<CSquare> & offsets) const;
+    bool IsMoveAvailableStatic(const CSquare & square, const std::vector<CSquare> & offsets) const;
+
+    void UpdateState();
+
+    std::string GetCastleFEN() const;
+    std::string GetEnPassantSquare() const;
+
     mutable CChessBoard     m_Board;
     CChessMove              m_LastMove;
     CChessPiece::Color      m_CurrentMoveColor        = CChessPiece::Color::White;
+    State                   m_State                   = State::Active;
 
     bool                    m_WhiteCanCastleKingSide  = true;
     bool                    m_WhiteCanCastleQueenSide = true;

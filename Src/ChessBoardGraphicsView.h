@@ -22,6 +22,8 @@ public:
 
     void UpdateBoardItems();
 
+    void EvaluatePosition();
+
 protected:
     void resizeEvent(QResizeEvent * event) override;
     void mousePressEvent(QMouseEvent * event) override;
@@ -29,6 +31,8 @@ protected:
     void mouseMoveEvent(QMouseEvent * event) override;
 
 private:
+    void UpdateBoardGeometry();
+
     void UpdateBoardItemsPositions();
 
     void AddSquaresNumbersLetters();

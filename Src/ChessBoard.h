@@ -2,6 +2,9 @@
 
 #include "ChessPiece.h"
 
+#include <string>
+#include <vector>
+
 namespace ChessProj
 {
 
@@ -32,10 +35,14 @@ public:
 
     const CChessPiece & GetPieceAtSquare(const CSquare & square) const;
 
+    std::vector<CSquare> GetPieces(const CChessPiece::Color color) const;
+
     const CSquare & GetWhiteKingPos() const;
     const CSquare & GetBlackKingPos() const;
 
     void SetPieceAtSquare(const CChessPiece & piece, const CSquare & square);
+
+    std::string GetSquareName(const CSquare & square) const;
 
 private:
     CChessPiece         m_Pieces[8][8];

@@ -11,6 +11,7 @@ CMainToolBar::CMainToolBar()
 
     addAction(actMgr.GetAction(CActionManager::CommonAction::NewGameAsWhite));
     addAction(actMgr.GetAction(CActionManager::CommonAction::NewGameAsBlack));
+    addAction(actMgr.GetAction(CActionManager::CommonAction::EvaluatePosition));
 
     setFloatable(false);
     setMovable(false);

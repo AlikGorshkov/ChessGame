@@ -27,6 +27,8 @@ public:
 
     bool IsValid() const;
 
+    char GetFENChar() const;
+
     Type GetType() const;
     void SetType(const Type type);
 

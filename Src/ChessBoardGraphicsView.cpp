@@ -3,6 +3,7 @@
 #include <QGraphicsScene>
 #include <QGraphicsRectItem>
 #include <QGraphicsPixmapItem>
+#include <QMessageBox>
 #include <QMouseEvent>
 
 namespace ChessProj
@@ -67,6 +68,18 @@ static const QPixmap & GetPixmapForPiece(const CChessPiece & piece)
     return GetPixmapForTypeColor(piece.GetType(), piece.GetColor());
 }
 
+static QString GetGameStateMessage(const CChessGame::State state)
+{
+    switch (state)
+    {
+    case CChessGame::State::WhiteWon : return "White won";
+    case CChessGame::State::BlackWon : return "Black won";
+    case CChessGame::State::Draw :     return "Draw";
+    }
+
+    return "Active";
+}
+
 CBoardGraphicsView::CBoardGraphicsView()
 {
     m_Font.setPointSize(s_FontSize);
@@ -86,6 +99,8 @@ CBoardGraphicsView::CBoardGraphicsView()
 void CBoardGraphicsView::StartNewGame(const bool asWhite)
 {
     m_Game.StartNew(asWhite ? CChessPiece::Color::White : CChessPiece::Color::Black);
+
+    UpdateBoardGeometry();
 
     UpdateBoardItems();
 }
@@ -120,12 +135,79 @@ void CBoardGraphicsView::UpdateBoardItems()
     UpdateBoardItemsPositions();
 }
 
+void CBoardGraphicsView::EvaluatePosition()
+{
+    QMessageBox::information(this, "FEN", m_Game.GetFEN().c_str(), QMessageBox::Ok);
+}
+
 void CBoardGraphicsView::resizeEvent(QResizeEvent * event)
 {
     __super::resizeEvent(event);
 
+    UpdateBoardGeometry();
+}
+
+void CBoardGraphicsView::mousePressEvent(QMouseEvent * event)
+{
+    __super::mousePressEvent(event);
+
+    if (event->button() != Qt::LeftButton)
+        return;
+
+    m_LastMousePressSquare = GetSquareForPoint(event->pos());
+
+    if (m_LastMousePressSquare.IsValid())
+    {
+        const auto squarePos = GetPosForSquare(m_LastMousePressSquare);
+
+        m_MousePosToPieceOffset = event->pos() - squarePos;
+
+        SetZValueForItemToMove(s_MovementZValue);
+    }
+}
+
+void CBoardGraphicsView::mouseReleaseEvent(QMouseEvent * event)
+{
+    __super::mousePressEvent(event);
+
+    if (event->button() != Qt::LeftButton)
+        return;
+
+    SetZValueForItemToMove(s_PieceItemZValue);
+
+    const auto square = GetSquareForPoint(event->pos());
+
+    if (m_Game.IsMoveLegal(CChessMove(m_LastMousePressSquare, square)))
+    {
+        m_Game.Move(CChessMove(m_LastMousePressSquare, square));
+
+        UpdateBoardItems();
+
+        if (m_Game.GetState() != CChessGame::State::Active)
+            QMessageBox::information(this, "Game over", GetGameStateMessage(m_Game.GetState()), QMessageBox::Ok);
+    }
+    else
+        ReturnLastMovedPieceBack();
+}
+
+void CBoardGraphicsView::mouseMoveEvent(QMouseEvent * event)
+{
+    __super::mouseMoveEvent(event);
+
+    if (!(event->buttons() & Qt::LeftButton))
+        return;
+
+    if (m_LastMousePressSquare.IsValid())
+        if (auto * item = m_BoardPiecesCache[m_LastMousePressSquare.m_Row][m_LastMousePressSquare.m_Col])
+            item->setPos(event->pos() - m_MousePosToPieceOffset);
+}
+
+void CBoardGraphicsView::UpdateBoardGeometry()
+{
     if (m_SquaresItems.empty())
         return;
+
+    const bool isWhiteBottom = m_Game.GetBoard().GetBottomColor() == CChessPiece::Color::White;
 
     assert(m_SquaresItems.size() == 64);
 
@@ -169,20 +251,24 @@ void CBoardGraphicsView::resizeEvent(QResizeEvent * event)
 
     m_BackgroundItem->setRect(0.0, 0.0, viewWidth, viewHeight);
 
-    // numbers
+    // numbers 
 
     for (std::size_t i = 0; i < 8; ++i)
     {
         const auto rowOffset = s_BoardMarginTop + squareSide * static_cast<qreal>(i);
 
-        m_SquaresNumbers[i]->setPos(numberXPos, rowOffset + yOffset);
+        const auto numberIndex = isWhiteBottom ? i : 7u - i;
+
+        m_SquaresNumbers[numberIndex]->setPos(numberXPos, rowOffset + yOffset);
     }
 
     // letters
 
     for (std::size_t i = 0; i < 8; ++i)
     {
-        auto * letterText = m_SquaresLetters[i];
+        const auto letterIndex = isWhiteBottom ? i : 7u - i;
+
+        auto * letterText = m_SquaresLetters[letterIndex];
 
         const auto ww = fontMetrics.width(letterText->toPlainText());
 
@@ -194,58 +280,6 @@ void CBoardGraphicsView::resizeEvent(QResizeEvent * event)
     }
 
     UpdateBoardItemsPositions();
-}
-
-void CBoardGraphicsView::mousePressEvent(QMouseEvent * event)
-{
-    __super::mousePressEvent(event);
-
-    if (event->button() != Qt::LeftButton)
-        return;
-
-    m_LastMousePressSquare = GetSquareForPoint(event->pos());
-
-    if (m_LastMousePressSquare.IsValid())
-    {
-        const auto squarePos = GetPosForSquare(m_LastMousePressSquare);
-
-        m_MousePosToPieceOffset = event->pos() - squarePos;
-
-        SetZValueForItemToMove(s_MovementZValue);
-    }
-}
-
-void CBoardGraphicsView::mouseReleaseEvent(QMouseEvent * event)
-{
-    __super::mousePressEvent(event);
-
-    if (event->button() != Qt::LeftButton)
-        return;
-
-    SetZValueForItemToMove(s_PieceItemZValue);
-
-    const auto square = GetSquareForPoint(event->pos());
-
-    if (m_Game.IsMoveLegal(CChessMove(m_LastMousePressSquare, square)))
-    {
-        m_Game.Move(CChessMove(m_LastMousePressSquare, square));
-
-        UpdateBoardItems();
-    }
-    else
-        ReturnLastMovedPieceBack();
-}
-
-void CBoardGraphicsView::mouseMoveEvent(QMouseEvent * event)
-{
-    __super::mouseMoveEvent(event);
-
-    if (!(event->buttons() & Qt::LeftButton))
-        return;
-
-    if (m_LastMousePressSquare.IsValid())
-        if (auto * item = m_BoardPiecesCache[m_LastMousePressSquare.m_Row][m_LastMousePressSquare.m_Col])
-            item->setPos(event->pos() - m_MousePosToPieceOffset);
 }
 
 void CBoardGraphicsView::UpdateBoardItemsPositions()

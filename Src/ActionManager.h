@@ -11,7 +11,8 @@ public:
     enum class CommonAction
     {
         NewGameAsWhite,
-        NewGameAsBlack
+        NewGameAsBlack,
+        EvaluatePosition
     };
 
     static CActionManager & Instance();

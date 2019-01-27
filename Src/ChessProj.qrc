@@ -13,5 +13,6 @@
         <file alias="BlackBishop">res/BlackBishop.png</file>
         <file alias="BlackKnight">res/BlackKnight.png</file>
         <file alias="BlackPawn">res/BlackPawn.png</file>
+        <file alias="Evaluate">res/Evaluate.png</file>
     </qresource>
 </RCC>

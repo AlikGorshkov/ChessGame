@@ -13,6 +13,7 @@ CChessGame::CChessGame()
 void CChessGame::StartNew(const CChessPiece::Color color)
 {
     m_CurrentMoveColor = CChessPiece::Color::White;
+    m_State            = State::Active;
 
     m_Board.Initialize(color);
 
@@ -32,6 +33,65 @@ CChessPiece::Color CChessGame::GetCurrentMoveColor() const
 const CChessBoard & CChessGame::GetBoard() const
 {
     return m_Board;
+}
+
+CChessGame::State CChessGame::GetState() const
+{
+    return m_State;
+}
+
+std::string CChessGame::GetFEN() const
+{
+    std::string fen;
+    fen.reserve(100);
+
+    const bool isWhiteSide = m_Board.GetBottomColor() == CChessPiece::Color::White;
+
+    const int start = isWhiteSide ? 0 :  7;
+    const int end   = isWhiteSide ? 8 : -1;
+    const int inc   = isWhiteSide ? 1 : -1;
+
+    for (int rank = start; rank != end; rank += inc)
+    {
+        int emptyFiles = 0;
+
+        for (int file = start; file != end; file += inc)
+        {
+            const auto & piece = m_Board.GetPieceAtSquare(CSquare(rank, file));
+            if (piece.IsValid())
+            {
+                if (emptyFiles > 0)
+                    fen += '0' + emptyFiles;
+
+                fen += piece.GetFENChar();
+
+                emptyFiles = 0;
+            }
+            else
+                ++emptyFiles;
+        }
+
+        if (emptyFiles > 0)
+            fen += '0' + emptyFiles;
+
+        fen += '/';
+    }
+
+    fen.back() = ' '; // replace the last '/' with a space
+
+    fen += (m_CurrentMoveColor == CChessPiece::Color::White) ? 'w' : 'b';
+
+    fen += ' ';
+
+    fen += GetCastleFEN();
+
+    fen += ' ';
+
+    fen += GetEnPassantSquare();
+
+    fen += " 0 1";
+
+    return fen;
 }
 
 void CChessGame::Move(const CChessMove & mv, const CChessPiece::Type promoteType /*= CChessPiece::Type::Queen*/)
@@ -56,10 +116,15 @@ void CChessGame::Move(const CChessMove & mv, const CChessPiece::Type promoteType
     m_LastMove = mv;
 
     m_CurrentMoveColor = CChessPiece::GetOppositeColor(piece.GetColor());
+
+    UpdateState();
 }
 
 bool CChessGame::IsMoveLegal(const CChessMove & mv) const
 {
+    if (m_State != State::Active)
+        return false;
+
     if (!mv.IsValid())
         return false;
 
@@ -404,17 +469,12 @@ bool CChessGame::IsKingUnderCheck() const
         return true;
 
     // from King
-    for (int row = -1; row <= 1; ++row)
-        for (int col = -1; col <= 1; ++col)
-        {
-            const auto square = kingSquare + CSquare(row, col);
-            if (!square.IsValid())
-                continue;
-
-            const auto & piece = m_Board.GetPieceAtSquare(square);
-            if (piece.GetColor() == opponentColor && piece.GetType() == CChessPiece::Type::King)
-                return true;
-        }
+    for (const auto & offset : s_KingOffsets)
+    {
+        const auto & king = m_Board.GetPieceAtSquare(kingSquare + offset);
+        if (king.GetColor() == opponentColor && king.GetType() == CChessPiece::Type::King)
+            return true;
+    }
 
     return false;
 }
@@ -499,6 +559,224 @@ void CChessGame::HandlePawnMove(const CChessMove & mv, const CChessPiece::Type p
         if (pawn.GetType() == CChessPiece::Type::Pawn)
             m_Board.SetPieceAtSquare(CChessPiece(), m_LastMove.m_To);
     }
+}
+
+bool CChessGame::IsMoveAvailable() const
+{
+    const auto piecesSquares = m_Board.GetPieces(m_CurrentMoveColor);
+
+    for (const auto & square : piecesSquares)
+    {
+        const auto piece = m_Board.GetPieceAtSquare(square);
+
+        switch (piece.GetType())
+        {
+        case CChessPiece::Type::Pawn:
+        {
+            const int rankInc = (m_Board.GetBottomColor() == m_CurrentMoveColor) ? -1 : 1;
+
+            const std::vector<CSquare> offsets =
+            {
+                CSquare(rankInc,  0),
+                CSquare(rankInc, -1),
+                CSquare(rankInc,  1),
+                CSquare(2 * rankInc, 0)
+            };
+
+            for (const auto & offset : offsets)
+            {
+                const auto squareTo = square + offset;
+
+                const auto & pieceTo = m_Board.GetPieceAtSquare(squareTo);
+                if (pieceTo.IsValid() && pieceTo.GetColor() == m_CurrentMoveColor)
+                    continue;
+
+                if (IsPawnMoveLegal(CChessMove(square, squareTo)))
+                    return true;
+            }
+
+            break;
+        }
+        case CChessPiece::Type::Bishop:
+        {
+            if (IsMoveAvailableIncremental(square, s_DiagonalOffsets))
+                return true;
+
+            break;
+        }
+        case CChessPiece::Type::Knight:
+        {
+            if (IsMoveAvailableStatic(square, s_KnightOffsets))
+                return true;
+
+            break;
+        }
+        case CChessPiece::Type::King:
+        {
+            if (IsMoveAvailableStatic(square, s_KingOffsets))
+                return true;
+
+            break;
+        }
+        case CChessPiece::Type::Rook:
+        {
+            if (IsMoveAvailableIncremental(square, s_OrthogonalOffsets))
+                return true;
+
+            break;
+        }
+        case CChessPiece::Type::Queen:
+        {
+            if (IsMoveAvailableIncremental(square, s_DiagonalOffsets))
+                return true;
+
+            if (IsMoveAvailableIncremental(square, s_OrthogonalOffsets))
+                return true;
+
+            break;
+        }
+        }
+    }
+
+    return false;
+}
+
+bool CChessGame::IsMoveAvailableIncremental(const CSquare & square, const std::vector<CSquare> & offsets) const
+{
+    const auto pieceType = m_Board.GetPieceAtSquare(square).GetType();
+
+    assert(pieceType == CChessPiece::Type::Bishop || pieceType == CChessPiece::Type::Rook || pieceType == CChessPiece::Type::Queen);
+
+    for (const auto & offset : offsets)
+    {
+        auto squareTo = square + offset;
+
+        while (squareTo.IsValid())
+        {
+            const auto & piece = m_Board.GetPieceAtSquare(squareTo);
+            if (piece.IsValid() && piece.GetColor() == m_CurrentMoveColor)
+                break; // blocked by a piece of the same color
+
+            switch (pieceType)
+            {
+            case CChessPiece::Type::Bishop:
+            {
+                if (IsBishopMoveLegal(CChessMove(square, squareTo)))
+                    return true;
+
+                break;
+            }
+            case CChessPiece::Type::Rook:
+            {
+                if (IsRookMoveLegal(CChessMove(square, squareTo)))
+                    return true;
+
+                break;
+            }
+            case CChessPiece::Type::Queen:
+            {
+                if (IsQueenMoveLegal(CChessMove(square, squareTo)))
+                    return true;
+
+                break;
+            }
+            }
+
+            if (piece.IsValid())
+                break; // blocked by a piece of the opposite color that cannot be taken => stop iterating this offset
+
+            squareTo += offset;
+        }
+    }
+
+    return false;
+}
+
+bool CChessGame::IsMoveAvailableStatic(const CSquare & square, const std::vector<CSquare> & offsets) const
+{
+    const auto pieceType = m_Board.GetPieceAtSquare(square).GetType();
+
+    assert(pieceType == CChessPiece::Type::Knight || pieceType == CChessPiece::Type::King);
+
+    for (const auto & offset : offsets)
+    {
+        const auto squareTo = square + offset;
+        if (!squareTo.IsValid())
+            continue;
+
+        const auto & piece = m_Board.GetPieceAtSquare(squareTo);
+        if (piece.IsValid() && piece.GetColor() == m_CurrentMoveColor)
+            continue; // can't capture a piece of the same color
+
+        switch (pieceType)
+        {
+        case CChessPiece::Type::Knight:
+        {
+            if (IsKnightMoveLegal(CChessMove(square, squareTo)))
+                return true;
+
+            break;
+        }
+        case CChessPiece::Type::King:
+        {
+            if (IsKingMoveLegal(CChessMove(square, squareTo)))
+                return true;
+
+            break;
+        }
+        }
+    }
+
+    return false;
+}
+
+void CChessGame::UpdateState()
+{
+    if (IsMoveAvailable())
+        return;
+
+    if (IsKingUnderCheck())
+        m_State = (m_CurrentMoveColor == CChessPiece::Color::White) ? State::BlackWon : State::WhiteWon;
+    else
+        m_State = State::Draw;
+}
+
+std::string CChessGame::GetCastleFEN() const
+{
+    if (!m_WhiteCanCastleKingSide && !m_WhiteCanCastleQueenSide && !m_BlackCanCastleKingSide && !m_BlackCanCastleQueenSide)
+        return "-";
+
+    std::string fen;
+
+    if (m_WhiteCanCastleKingSide)
+        fen += 'K';
+
+    if (m_WhiteCanCastleQueenSide)
+        fen += 'Q';
+
+    if (m_BlackCanCastleKingSide)
+        fen += 'k';
+
+    if (m_BlackCanCastleQueenSide)
+        fen += 'q';
+
+    return fen;
+}
+
+std::string CChessGame::GetEnPassantSquare() const
+{
+    if (!m_LastMove.IsValid()         ||
+        m_LastMove.GetNumFiles() != 0 ||
+        m_LastMove.GetNumRanks() != 2)
+        return "-";
+
+    const auto & pawn = m_Board.GetPieceAtSquare(m_LastMove.m_To);
+    if (pawn.GetType() != CChessPiece::Type::Pawn)
+        return "-";
+
+    const auto behindPawnSquare = CSquare(m_LastMove.m_From.m_Row + m_LastMove.GetRankIncrement(), m_LastMove.m_From.m_Col);
+
+    return m_Board.GetSquareName(behindPawnSquare);
 }
 
 } // namespace ChessProj

@@ -5,6 +5,20 @@
 namespace ChessProj
 {
 
+// pieces offsets
+
+const std::vector<CSquare> s_KingOffsets =
+{
+    CSquare(-1, -1),
+    CSquare(-1,  0),
+    CSquare(-1,  1),
+    CSquare( 1, -1),
+    CSquare( 1,  0),
+    CSquare( 1,  1),
+    CSquare( 0, -1),
+    CSquare( 0,  1)
+};
+
 const std::vector<CSquare> s_KnightOffsets =
 {
     CSquare(-2, -1),

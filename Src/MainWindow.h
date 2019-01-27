@@ -18,6 +18,7 @@ public:
 private slots:
     void StartNewGameAsWhite();
     void StartNewGameAsBlack();
+    void EvaluatePosition();
 
 private:
     CMainToolBar *       m_ToolBar;

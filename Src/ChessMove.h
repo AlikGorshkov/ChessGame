@@ -2,8 +2,6 @@
 
 #include "ChessBoard.h"
 
-#include <vector>
-
 namespace ChessProj
 {
 
@@ -37,6 +35,7 @@ private:
     CChessBoard &       m_Board;
 };
 
+extern const std::vector<CSquare> s_KingOffsets;
 extern const std::vector<CSquare> s_KnightOffsets;
 extern const std::vector<CSquare> s_DiagonalOffsets;
 extern const std::vector<CSquare> s_OrthogonalOffsets;
